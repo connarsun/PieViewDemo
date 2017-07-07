@@ -24,28 +24,43 @@
 @property (nonatomic, assign) CGFloat totalValue;
 @property (nonatomic, strong) NSMutableArray *colors;
 @property (nonatomic, copy) ClickCallBack callBack;
+@property (nonatomic, strong) UILabel *tipLabel;
+@property (nonatomic, strong) PieViewAnimationLayer *currentLayer;
+
+@property (nonatomic, strong) CAShapeLayer *lineLayer;
+@property (nonatomic, strong) CATextLayer *textLayer;
+
 @end
 
 @implementation PieView
 
-- (instancetype)initWithFrame:(CGRect)frame
-{
-    self = [super initWithFrame:frame];
-    if (self) {
-        [self setup];
+#pragma mark -- 懒加载
+- (UILabel *)tipLabel {
+    if (!_tipLabel) {
+        _tipLabel = [[UILabel alloc] init];
+        [self addSubview:_tipLabel];
     }
-    return self;
+    return _tipLabel;
 }
 
-
--(void)awakeFromNib {
-    [super awakeFromNib];
-    [self setup];
+- (CAShapeLayer *)lineLayer {
+    if (!_lineLayer) {
+        _lineLayer = [CAShapeLayer layer];
+        _lineLayer.fillColor = [UIColor clearColor].CGColor;
+        [self.layer addSublayer:_lineLayer];
+    }
+    return _lineLayer;
 }
 
-- (void)setup {
-    self.pieLayer = [CAShapeLayer layer];
-    [self.layer addSublayer:self.pieLayer];
+- (CATextLayer *)textLayer {
+    if (!_textLayer) {
+        _textLayer = [CATextLayer layer];
+        _textLayer.fontSize = self.font.pointSize;
+        _textLayer.alignmentMode = kCAAlignmentLeft;
+        _textLayer.foregroundColor = [UIColor colorWithWhite:0 alpha:0.8].CGColor;
+        [self.layer addSublayer:_textLayer];
+    }
+    return _textLayer;
 }
 
 - (NSMutableArray *)animationLayerArr {
@@ -62,7 +77,29 @@
     return _colors;
 }
 
+#pragma mark - init
+- (instancetype)initWithFrame:(CGRect)frame
+{
+    self = [super initWithFrame:frame];
+    if (self) {
+        [self setup];
+    }
+    return self;
+}
+
+-(void)awakeFromNib {
+    [super awakeFromNib];
+    [self setup];
+}
+
+- (void)setup {
+    self.needAnimation = YES;
+    self.pieLayer = [CAShapeLayer layer];
+    [self.layer addSublayer:self.pieLayer];
+}
+
 - (void)setSectionCount:(NSArray *)sectionCount {
+    NSAssert(sectionCount.count != 0, @"sectionCount must not be empty or nil");
     _sectionCount = sectionCount;
     for (int i = 0; i < sectionCount.count; i ++) {
         [self.colors addObject:RandColor];
@@ -76,53 +113,29 @@
     return self.colors;
 }
 
+#pragma mark -- 默认值
 - (CGFloat)radius {
-    if (_radius) {
-        return _radius;
-    }
-    return 100.0;
+    return _radius? _radius : 100.0;
 }
 
 - (CGFloat)offset {
-    if (_offset) {
-        return _offset;
-    }
-    return 15.0;
+    return _offset ? _offset : 15.0;
 }
 
 - (CGFloat)offsetSpace {
-    if (_offsetSpace) {
-        return _offsetSpace;
-    }
-    return 0.0;
+    return _offsetSpace ? _offsetSpace : 0.0;
 }
 
 - (CGFloat)startLineLength {
-    if (_startLineLength) {
-        return _startLineLength;
-    }
-    return 20.0;
+    return _startLineLength ? _startLineLength : 20.0;
 }
 
 - (CGFloat)endLineLength {
-    if (_endLineLength) {
-        return _endLineLength;
-    }
-    return 10.0;
+    return _endLineLength ? _endLineLength : 10.0 ;
 }
 
 - (UIFont *)font {
-    if (_font) {
-        return _font;
-    }
-    return [UIFont systemFontOfSize:14];
-}
-
-- (BOOL)needAnimation {
-    if (_needAnimation) {
-        return _needAnimation;
-    }
-    return YES;
+    return _font ? _font : [UIFont systemFontOfSize:14];
 }
 
 - (void)showWithBlock:(ClickCallBack)callBack {
@@ -142,7 +155,7 @@
     
     for (int i = 0; i < self.sectionCount.count; i ++) {
         radian = [self getRadianWithValue:[self.sectionCount[i] floatValue]
-                                       totalValue:totalValue];
+                               totalValue:totalValue];
         endAngle = startAngle + radian;
         self.endAngle = endAngle;
         UIBezierPath *path = [UIBezierPath bezierPathWithArcCenter:center
@@ -163,7 +176,7 @@
         layer.fillColor = self.sectionColors[i].CGColor;
         [self.animationLayerArr addObject:layer];
         [self.pieLayer addSublayer:layer];
-
+        
         startAngle = endAngle;
         self.startAngle = startAngle;
     }
@@ -180,8 +193,16 @@
     [self drawLineAndText];
 }
 
+- (void)showAnimation {
+    [self addMaskAnimation];
+}
 
 - (void)addMaskAnimation {
+    // 做动画时，清除之前的文本和折线
+    if (self.layer.sublayers.count > 1) {
+        self.layer.sublayers = @[self.layer.sublayers.firstObject];
+    }
+    
     CGFloat radius = self.radius;
     CGFloat borderWidth = self.radius * 2;
     CAShapeLayer *maskLayer = [self newCircleLayerWithRadius:radius
@@ -279,7 +300,7 @@
             textY = endLineY - textSize.height * 0.5;
         }
         
-        // 起始端折线
+        // 折线
         [self drawLineWithStartPoint:CGPointMake(startLineX, startLineY)
                            kneePoint:CGPointMake(kneeLineX, kneeLineY)
                             endPoint:CGPointMake(endLineX, endLineY)
@@ -299,6 +320,7 @@
     [linePath addLineToPoint:kneePoint];
     [linePath addLineToPoint:endPoint];
     linePath.lineWidth = 1;
+    
     CAShapeLayer *lineLayer = [CAShapeLayer layer];
     lineLayer.path = linePath.CGPath;
     lineLayer.strokeColor = lineColor.CGColor;
@@ -312,7 +334,7 @@
     textLayer.frame = frame;
     textLayer.fontSize = self.font.pointSize;
     textLayer.alignmentMode = kCAAlignmentLeft;
-    textLayer.foregroundColor = [UIColor blackColor].CGColor;
+    textLayer.foregroundColor = [UIColor colorWithWhite:0 alpha:0.8].CGColor;
     [self.layer addSublayer:textLayer];
 }
 
@@ -326,18 +348,51 @@
     
     UITouch *touch = [touches anyObject];
     CGPoint currentP = [touch locationInView:self];
-
+    
     [self.animationLayerArr enumerateObjectsUsingBlock:^(PieViewAnimationLayer * _Nonnull obj, NSUInteger idx, BOOL * _Nonnull stop) {
         
         if (CGPathContainsPoint(obj.path, NULL, currentP, YES)) {
             obj.isSelected = !obj.isSelected;
+            self.currentLayer = obj;
             if (self.callBack) { self.callBack(idx); }
+            [self drawTextWithTitle:self.lineTexts[idx]
+                          textColor:self.sectionColors[idx]
+                         textCenter:currentP
+                             isShow:!obj.isSelected];
+            return ;
         } else {
             obj.isSelected = NO;
         }
+        
     }];
+    
+    if (!self.currentLayer.isSelected) {
+        self.tipLabel.hidden = YES;
+    }
 }
 
+/*
+ 添加UILabel
+ */
 
+- (void)drawTextWithTitle:(NSString *)title
+                textColor:(UIColor *)textColor
+               textCenter:(CGPoint)textCenter
+                   isShow:(BOOL)isShow {
+    self.tipLabel.text = title;
+    [self.tipLabel sizeToFit];
+    [UIView animateWithDuration:0.5 animations:^{
+        self.tipLabel.center = textCenter;
+    }];
+    [self.tipLabel sizeToFit];
+    self.tipLabel.hidden = isShow;
+    self.tipLabel.textColor = textColor;
+    self.tipLabel.backgroundColor = [UIColor colorWithWhite:1 alpha:0.8];
+    self.tipLabel.textAlignment = NSTextAlignmentCenter;
+    
+    self.tipLabel.layer.bounds = CGRectMake(0, 0, self.tipLabel.bounds.size.width + 10, self.tipLabel.bounds.size.height + 10);
+    self.tipLabel.layer.borderWidth = 1;
+    self.tipLabel.layer.borderColor = textColor.CGColor;
+}
 
 @end
