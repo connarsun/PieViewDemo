@@ -26,9 +26,8 @@
 @property (nonatomic, copy) ClickCallBack callBack;
 @property (nonatomic, strong) UILabel *tipLabel;
 @property (nonatomic, strong) PieViewAnimationLayer *currentLayer;
-
-@property (nonatomic, strong) CAShapeLayer *lineLayer;
-@property (nonatomic, strong) CATextLayer *textLayer;
+@property (nonatomic, strong) NSMutableArray *lineLayers;
+@property (nonatomic, strong) NSMutableArray *textLayers;
 
 @end
 
@@ -43,24 +42,18 @@
     return _tipLabel;
 }
 
-- (CAShapeLayer *)lineLayer {
-    if (!_lineLayer) {
-        _lineLayer = [CAShapeLayer layer];
-        _lineLayer.fillColor = [UIColor clearColor].CGColor;
-        [self.layer addSublayer:_lineLayer];
+- (NSMutableArray *)lineLayers {
+    if (!_lineLayers) {
+        _lineLayers = [NSMutableArray array];
     }
-    return _lineLayer;
+    return _lineLayers;
 }
 
-- (CATextLayer *)textLayer {
-    if (!_textLayer) {
-        _textLayer = [CATextLayer layer];
-        _textLayer.fontSize = self.font.pointSize;
-        _textLayer.alignmentMode = kCAAlignmentLeft;
-        _textLayer.foregroundColor = [UIColor colorWithWhite:0 alpha:0.8].CGColor;
-        [self.layer addSublayer:_textLayer];
+- (NSMutableArray *)textLayers {
+    if (!_textLayers) {
+        _textLayers = [NSMutableArray array];
     }
-    return _textLayer;
+    return _textLayers;
 }
 
 - (NSMutableArray *)animationLayerArr {
@@ -101,6 +94,7 @@
 - (void)setSectionCount:(NSArray *)sectionCount {
     NSAssert(sectionCount.count != 0, @"sectionCount must not be empty or nil");
     _sectionCount = sectionCount;
+    [self.colors removeAllObjects];
     for (int i = 0; i < sectionCount.count; i ++) {
         [self.colors addObject:RandColor];
     }
@@ -140,7 +134,10 @@
 
 - (void)showWithBlock:(ClickCallBack)callBack {
     self.callBack = callBack;
-    
+    [self showPieView];
+}
+
+- (void)showPieView {
     CGFloat startAngle = -M_PI_2;
     CGFloat endAngle = 0.0;
     CGFloat radian = 0.0;
@@ -193,16 +190,29 @@
     [self drawLineAndText];
 }
 
-- (void)showAnimation {
-    [self addMaskAnimation];
+- (void)updatePieView {
+    
+    for (CALayer *layer in self.animationLayerArr) {
+        [layer removeFromSuperlayer];
+    }
+    [self.animationLayerArr removeAllObjects];
+    
+    for (CALayer *layer in self.textLayers) {
+        [layer removeFromSuperlayer];
+    }
+    [self.textLayers removeAllObjects];
+    
+    for (CALayer *layer in self.lineLayers) {
+        [layer removeFromSuperlayer];
+    }
+    [self.lineLayers removeAllObjects];
+    
+    self.tipLabel.hidden = YES;
+
+    [self showPieView];
 }
 
 - (void)addMaskAnimation {
-    // 做动画时，清除之前的文本和折线
-    if (self.layer.sublayers.count > 1) {
-        self.layer.sublayers = @[self.layer.sublayers.firstObject];
-    }
-    
     CGFloat radius = self.radius;
     CGFloat borderWidth = self.radius * 2;
     CAShapeLayer *maskLayer = [self newCircleLayerWithRadius:radius
@@ -325,6 +335,7 @@
     lineLayer.path = linePath.CGPath;
     lineLayer.strokeColor = lineColor.CGColor;
     lineLayer.fillColor = [UIColor clearColor].CGColor;
+    [self.lineLayers addObject:lineLayer];
     [self.layer addSublayer:lineLayer];
 }
 
@@ -335,6 +346,7 @@
     textLayer.fontSize = self.font.pointSize;
     textLayer.alignmentMode = kCAAlignmentLeft;
     textLayer.foregroundColor = [UIColor colorWithWhite:0 alpha:0.8].CGColor;
+    [self.textLayers addObject:textLayer];
     [self.layer addSublayer:textLayer];
 }
 

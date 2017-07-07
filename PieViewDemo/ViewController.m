@@ -29,15 +29,31 @@
     }
     
     self.pieView.sectionCount = dataArr;
-    self.pieView.sectionColors = @[[UIColor redColor], [UIColor greenColor]];
+    self.pieView.sectionColors = @[[UIColor redColor],
+                                   [UIColor yellowColor],
+                                   [UIColor blueColor],
+                                   [UIColor greenColor],
+                                   [UIColor orangeColor],
+                                   [UIColor grayColor]];
     self.pieView.lineTexts = @[@"text0", @"text1哈哈哈嘿", @"text2", @"text3", @"text4", @"text5", @"text6"];
+//    self.pieView.needAnimation = NO;
     [self.pieView showWithBlock:^(NSInteger index) {
         NSLog(@"哈哈哈==点了第%ld个", index);
         
     }];
 }
 - (IBAction)btnAction:(id)sender {
-    [self.pieView showAnimation];
+    
+    NSMutableArray *dataArr = [NSMutableArray array];
+    
+    for (int i = 0; i < 5; i ++) {
+        NSInteger random = arc4random() % 10 + 1;
+        [dataArr addObject:[NSString stringWithFormat:@"%ld", random]];
+    }
+    
+    self.pieView.sectionCount = dataArr;
+    
+    [self.pieView updatePieView];
 }
 
 - (void)touchesBegan:(NSSet<UITouch *> *)touches withEvent:(UIEvent *)event {

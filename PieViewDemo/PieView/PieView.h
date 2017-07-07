@@ -51,9 +51,9 @@ typedef void(^ClickCallBack)(NSInteger index);
  */
 @property (nonatomic, assign) BOOL needAnimation;
 /**
- 手动显示旋转动画
+ 更新视图
  */
-- (void)showAnimation;
+- (void)updatePieView;
 
 - (void)showWithBlock:(ClickCallBack)callBack ;
 @end
